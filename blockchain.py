@@ -1,6 +1,8 @@
 import hashlib
 import json
 import boto3
+import azure.functions as func
+from google.cloud import functions_v1
 
 class Block:
     def __init__(self, previous_hash, transaction_data, nonce=0):
@@ -43,9 +45,9 @@ class Blockchain:
         return hash
 
 class MiningPool:
-    def __init__(self, blockchain, lambda_client):
+    def __init__(self, blockchain, cloud_provider):
         self.blockchain = blockchain
-        self.lambda_client = lambda_client
+        self.cloud_provider = cloud_provider
         self.miners = []
 
     def add_miner(self, miner):
@@ -55,7 +57,12 @@ class MiningPool:
         for miner in self.miners:
             # Invoke Lambda function to give miner next block to mine
             payload = {"previous_hash": self.blockchain.chain[-1].hash}
-            response = self.lambda_client.invoke(FunctionName='Miner', Payload=json.dumps(payload))
+            if self.cloud_provider == 'aws':
+                response = boto3.client('lambda').invoke(FunctionName='Miner', Payload=json.dumps(payload))
+            elif self.cloud_provider == 'azure':
+                response = func.invoke_function('Miner', json.dumps(payload))
+            elif self.cloud_provider == 'google':
+                response = functions_v1.CloudFunctionsServiceClient().call_function(name='Miner', data=json.dumps(payload).encode())
             miner.work = json.loads(response['Payload'].read())
 
     def collect_blocks(self):
@@ -89,7 +96,7 @@ def lambda_handler(event, context):
     blockchain = Blockchain()
 
     # Get the mining pool instance
-    mining_pool = MiningPool(blockchain, boto3.client('lambda'))
+    mining_pool = MiningPool(blockchain, os.environ['CLOUD_PROVIDER'])
 
     # If the event is a mining pool event, distribute work to miners
     if event['type'] == 'mining_pool':
@@ -104,3 +111,4 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': json.dumps('Success!')
     }
+
