@@ -1,19 +1,6 @@
-import json
 import hashlib
+import json
 import boto3
-from google.cloud import functions_v1
-import azure.functions as func
-
-class Block:
-    def __init__(self, previous_hash, transaction_data, nonce=0):
-        self.previous_hash = previous_hash
-        self.transaction_data = transaction_data
-        self.nonce = nonce
-        self.hash = self.calculate_hash()
-
-    def calculate_hash(self):
-        data = str(self.previous_hash) + str(self.transaction_data) + str(self.nonce)
-        return hashlib.sha256(data.encode()).hexdigest()
 
 class Blockchain:
     def __init__(self):
@@ -44,50 +31,79 @@ class Blockchain:
                 break
         return hash
 
-class MiningPool:
-    def __init__(self, blockchain, cloud_provider):
-        self.blockchain = blockchain
-        self.cloud_provider = cloud_provider
-        self.miners = []
+    def get_chain(self):
+        return self.chain
 
-    def add_miner(self, miner):
-        self.miners.append(miner)
+class Block:
+    def __init__(self, previous_hash, transaction_data, nonce=0):
+        self.previous_hash = previous_hash
+        self.transaction_data = transaction_data
+        self.nonce = nonce
+        self.hash = self.calculate_hash()
 
-    def distribute_work(self):
-        for miner in self.miners:
-            # Invoke Lambda function to give miner next block to mine
-            payload = {"previous_hash": self.blockchain.chain[-1].hash}
-            if self.cloud_provider == 'aws':
-                response = boto3.client('lambda').invoke(FunctionName='Miner', Payload=json.dumps(payload))
-            elif self.cloud_provider == 'azure':
-                response = func.invoke_function('Miner', json.dumps(payload))
-            elif self.cloud_provider == 'google':
-                response = functions_v1.CloudFunctionsServiceClient().call_function(name='Miner', data=json.dumps(payload).encode())
-            miner.work = json.loads(response['Payload'].read())
+    def calculate_hash(self):
+        data = str(self.previous_hash) + str(self.transaction_data) + str(self.nonce)
+        return hashlib.sha256(data.encode()).hexdigest()
 
-    def collect_blocks(self):
-        for miner in self.miners:
-            block = miner.submit_block()
-            if block is not None:
-                self.blockchain.add_block(block)
-
-class Miner:
+class Messaging:
     def __init__(self, blockchain):
         self.blockchain = blockchain
-        self.work = None
 
-    def mine_block(self):
-        previous_block = self.blockchain.chain[-1]
-        block = Block(previous_block.hash, [])
-        hash = self.blockchain.proof_of_work(block)
-        block.hash = hash
-        return block
+    def send_message(self, message):
+        # TODO: Implement this method to send the message to the blockchain.
+        pass
 
-    def submit_block(self):
-        if self.work is not None:
-            block = self.mine_block()
-            self.work = None
-            return block
-        else:
-            return None
+    def receive_messages(self):
+        # TODO: Implement this method to receive messages from the blockchain.
+        pass
 
+class Storage:
+    def __init__(self, blockchain):
+        self.blockchain = blockchain
+
+    def store_data(self, data):
+        # TODO: Implement this method to store the data on the blockchain.
+        pass
+
+    def retrieve_data(self):
+        # TODO: Implement this method to retrieve data from the blockchain.
+        pass
+
+class Network:
+    def __init__(self, blockchain):
+        self.blockchain = blockchain
+
+    def connect_to_peers(self):
+        # TODO: Implement this method to connect to other peers in the network.
+        pass
+
+    def broadcast_message(self, message):
+        # TODO: Implement this method to broadcast the message to all peers in the network.
+        pass
+
+def main():
+    blockchain = Blockchain()
+    messaging = Messaging(blockchain)
+    storage = Storage(blockchain)
+    network = Network(blockchain)
+
+    # Send a message to the blockchain.
+    messaging.send_message("Hello, world!")
+
+    # Retrieve all messages from the blockchain.
+    messages = messaging.receive_messages()
+
+    # Store some data on the blockchain.
+    storage.store_data("This is some data.")
+
+    # Retrieve the data from the blockchain.
+    data = storage.retrieve_data()
+
+    # Connect to other peers in the network.
+    network.connect_to_peers()
+
+    # Broadcast a message to all peers in the network.
+    network.broadcast_message("This is a broadcast message.")
+
+if __name__ == "__main__":
+    main()
