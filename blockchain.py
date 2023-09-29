@@ -1,7 +1,6 @@
 import hashlib
-import random
-import socket
-from collections import OrderedDict
+import json
+import boto3
 
 class Block:
     def __init__(self, previous_hash, transaction_data, nonce=0):
@@ -16,16 +15,15 @@ class Block:
 
 class Blockchain:
     def __init__(self):
-        self.chain = OrderedDict()
+        self.chain = []
         self.genesis_block = Block("0", [])
-        self.chain[self.genesis_block.hash] = self.genesis_block
-        self.nodes = []
+        self.chain.append(self.genesis_block)
 
     def add_block(self, block):
-        self.chain[block.hash] = block
+        self.chain.append(block)
 
     def is_valid_block(self, block):
-        previous_block = self.chain[block.previous_hash]
+        previous_block = self.chain[-1]
         if block.previous_hash != previous_block.hash:
             return False
         if not self.is_valid_transaction_data(block.transaction_data):
@@ -44,41 +42,65 @@ class Blockchain:
                 break
         return hash
 
-    def connect_to_node(self, node):
-        self.nodes.append(node)
+class MiningPool:
+    def __init__(self, blockchain, lambda_client):
+        self.blockchain = blockchain
+        self.lambda_client = lambda_client
+        self.miners = []
 
-    def broadcast_block(self, block):
-        for node in self.nodes:
-            node.add_block(block)
+    def add_miner(self, miner):
+        self.miners.append(miner)
 
-class Node:
+    def distribute_work(self):
+        for miner in self.miners:
+            # Invoke Lambda function to give miner next block to mine
+            payload = {"previous_hash": self.blockchain.chain[-1].hash}
+            response = self.lambda_client.invoke(FunctionName='Miner', Payload=json.dumps(payload))
+            miner.work = json.loads(response['Payload'].read())
+
+    def collect_blocks(self):
+        for miner in self.miners:
+            block = miner.submit_block()
+            if block is not None:
+                self.blockchain.add_block(block)
+
+class Miner:
     def __init__(self, blockchain):
         self.blockchain = blockchain
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind(('localhost', 5000))
-        self.socket.listen(1)
+        self.work = None
 
-    def listen_for_blocks(self):
-        while True:
-            connection, address = self.socket.accept()
-            data = connection.recv(1024)
-            block = Block.from_json(data)
-            self.blockchain.add_block(block)
-            connection.close()
-
-    def broadcast_block(self, block):
-        for node in self.blockchain.nodes:
-            node.socket.sendall(block.to_json().encode())
-
-if __name__ == "__main__":
-    blockchain = Blockchain()
-    node = Node(blockchain)
-    node.listen_for_blocks()
-
-    while True:
-        transaction_data = input("Enter a transaction: ")
-        block = Block(blockchain.chain[-1].hash, transaction_data)
-        hash = blockchain.proof_of_work(block)
+    def mine_block(self):
+        previous_block = self.blockchain.chain[-1]
+        block = Block(previous_block.hash, [])
+        hash = self.blockchain.proof_of_work(block)
         block.hash = hash
-        blockchain.add_block(block)
-        node.broadcast_block(block)
+        return block
+
+    def submit_block(self):
+        if self.work is not None:
+            block = self.mine_block()
+            self.work = None
+            return block
+        else:
+            return None
+
+def lambda_handler(event, context):
+    # Get the blockchain instance
+    blockchain = Blockchain()
+
+    # Get the mining pool instance
+    mining_pool = MiningPool(blockchain, boto3.client('lambda'))
+
+    # If the event is a mining pool event, distribute work to miners
+    if event['type'] == 'mining_pool':
+        mining_pool.distribute_work()
+
+    # If the event is a miner event, collect blocks from miners
+    elif event['type'] == 'miner':
+        block = mining_pool.collect_blocks()
+
+    # Return a success response
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Success!')
+    }
