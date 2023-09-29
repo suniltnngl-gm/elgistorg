@@ -1,8 +1,8 @@
-import hashlib
 import json
+import hashlib
 import boto3
-import azure.functions as func
 from google.cloud import functions_v1
+import azure.functions as func
 
 class Block:
     def __init__(self, previous_hash, transaction_data, nonce=0):
@@ -90,25 +90,4 @@ class Miner:
             return block
         else:
             return None
-
-def lambda_handler(event, context):
-    # Get the blockchain instance
-    blockchain = Blockchain()
-
-    # Get the mining pool instance
-    mining_pool = MiningPool(blockchain, os.environ['CLOUD_PROVIDER'])
-
-    # If the event is a mining pool event, distribute work to miners
-    if event['type'] == 'mining_pool':
-        mining_pool.distribute_work()
-
-    # If the event is a miner event, collect blocks from miners
-    elif event['type'] == 'miner':
-        block = mining_pool.collect_blocks()
-
-    # Return a success response
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Success!')
-    }
 
