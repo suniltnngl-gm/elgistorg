@@ -1,4 +1,4 @@
-#Code
+# Code
 
 In this updated code, the   send_message()   method in the   Messaging   class adds a new block to the blockchain with the message as the transaction data. The   receive_messages()   method retrieves all messages from the blockchain.
 
