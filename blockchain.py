@@ -50,36 +50,38 @@ class Messaging:
         self.blockchain = blockchain
 
     def send_message(self, message):
-        # TODO: Implement this method to send the message to the blockchain.
-        pass
+        self.blockchain.add_block(Block(self.blockchain.chain[-1].hash, [message]))
 
     def receive_messages(self):
-        # TODO: Implement this method to receive messages from the blockchain.
-        pass
+        messages = []
+        for block in self.blockchain.chain[1:]:
+            messages.extend(block.transaction_data)
+        return messages
 
 class Storage:
     def __init__(self, blockchain):
         self.blockchain = blockchain
 
     def store_data(self, data):
-        # TODO: Implement this method to store the data on the blockchain.
-        pass
+        self.blockchain.add_block(Block(self.blockchain.chain[-1].hash, [data]))
 
     def retrieve_data(self):
-        # TODO: Implement this method to retrieve data from the blockchain.
-        pass
+        data = []
+        for block in self.blockchain.chain[1:]:
+            data.extend(block.transaction_data)
+        return data
 
 class Network:
     def __init__(self, blockchain):
         self.blockchain = blockchain
+        self.peers = []
 
-    def connect_to_peers(self):
-        # TODO: Implement this method to connect to other peers in the network.
-        pass
+    def connect_to_peers(self, peers):
+        self.peers.extend(peers)
 
     def broadcast_message(self, message):
-        # TODO: Implement this method to broadcast the message to all peers in the network.
-        pass
+        for peer in self.peers:
+            peer.send_message(message)
 
 def main():
     blockchain = Blockchain()
@@ -92,15 +94,19 @@ def main():
 
     # Retrieve all messages from the blockchain.
     messages = messaging.receive_messages()
+    print("Messages:", messages)
 
     # Store some data on the blockchain.
     storage.store_data("This is some data.")
 
     # Retrieve the data from the blockchain.
     data = storage.retrieve_data()
+    print("Data:", data)
 
     # Connect to other peers in the network.
-    network.connect_to_peers()
+    peer1 = Messaging(blockchain)
+    peer2 = Messaging(blockchain)
+    network.connect_to_peers([peer1, peer2])
 
     # Broadcast a message to all peers in the network.
     network.broadcast_message("This is a broadcast message.")
