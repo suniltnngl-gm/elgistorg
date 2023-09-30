@@ -1,4 +1,4 @@
-# Improvements
+# Improvement Proposals
 
 1. Implement transaction validation: Currently, the code does not validate the transaction data. You can add a method in the   Blockchain   class to validate the transaction data, ensuring that it meets certain criteria (e.g., checking if the sender has enough funds, verifying digital signatures, etc.).
 
